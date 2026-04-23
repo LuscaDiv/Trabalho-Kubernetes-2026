@@ -1,7 +1,100 @@
 # Opções de atualização:
-Para efetuar atualização da versão do Node no frontend deve-se navegar até a pasta #frontend na raiz do projeto e acessar o arquivo dockerfile, lá dentro deve-se alterar a versão 20 na linha 1 para a versão desejada.
 
-Para efetuar atualização da versão do Python deve-se acessar o dockerfile na raiz do projeto e alterar da versão 3.12 slim para a versão desejada.
+## Atualização do Node (Frontend)
+
+Para atualizar a versão do Node no frontend:
+
+1. Navegue até a pasta `frontend` na raiz do projeto
+2. Edite o arquivo `Dockerfile`
+3. Altere a versão na linha 1 (atualmente 20) para a versão desejada
+4. Se estiver usando desenvolvimento local, atualize a versão no arquivo `package.json` e execute `npm install`
+
+## Atualização do Python (Backend)
+
+Para atualizar a versão do Python:
+
+1. Edite o arquivo `Dockerfile` na raiz do projeto
+2. Altere a versão `3.12 slim` para a versão desejada
+3. Atualize também o arquivo `requirements.txt` se necessário
+
+## Atualização de Dependências
+
+Para atualizar as dependências do projeto:
+
+```bash
+# Backend
+pip freeze > requirements-freeze.txt
+
+# Frontend
+npm update
+```
+
+## Sistema de Balanceamento de Carga
+
+O projeto utiliza um sistema de balanceamento de carga para garantir alta disponibilidade e distribuição de tráfego:
+
+### Arquitetura
+
+```
+                    ┌─────────────┐
+                    │   Nginx     │
+                    │  (Porta 80) │
+                    └──────┬──────┘
+                           │
+              ┌────────────┴────────────┐
+              │                         │
+        ┌─────▼──────┐           ┌─────▼──────┐
+        │  Frontend  │           │   Backend   │
+        │  (Porta 80)│           │  (Upstream) │
+        └────────────┘           └──────┬──────┘
+                                         │
+                              ┌──────────┴──────────┐
+                              │                     │
+                        ┌─────▼──────┐        ┌─────▼──────┐
+                        │ backend-0  │        │ backend-1  │
+                        │ (Porta 5000)       │ (Porta 5001)│
+                        └──────┬──────┘        └──────┬──────┘
+                               │                      │
+                               └──────────┬───────────┘
+                                          │
+                                   ┌──────▼──────┐
+                                   │  PostgreSQL │
+                                   │  (Porta 5432)│
+                                   └─────────────┘
+```
+
+### Componentes
+
+1. **Nginx (Load Balancer)**: Servidor que distribui as requisições entre os backends
+2. **Backend-0 e Backend-1**: Duas instâncias do servidor Flask para balanceamento
+3. **Frontend**: Servidor React que atende as requisições web
+4. **PostgreSQL**: Banco de dados compartilhado entre os backends
+
+### Configuração do Balanceamento
+
+O balanceamento é configurado no arquivo `nginx/default.conf`:
+
+```nginx
+upstream backend_servers {
+    server backend-0:5000;
+    server backend-1:5000;
+}
+```
+
+O Nginx distribui as requisições da API (`/api/`) entre os dois backends usando round-robin por padrão.
+
+### Redes Docker
+
+O projeto utiliza duas redes Docker para isolamento:
+- **webnet**: Conecta frontend e backends
+- **database**: Conecta backends ao banco de dados PostgreSQL
+
+### Escalabilidade
+
+Para adicionar mais backends:
+1. Adicione um novo serviço no `docker-compose.yml`
+2. Adicione o novo servidor no upstream do Nginx
+3. O balanceamento será automático
 
 # Para executar o jogo deve-se executar os seguintes comandos no terminal:
 
@@ -168,4 +261,8 @@ Tente adivinhar
 ## Licença
 
 Este projeto está licenciado sob a [MIT License](LICENSE).
+
+---
+
+
 

@@ -11,8 +11,6 @@ services:
     restart: always
     networks:
       - database
-    expose:
-      - 5432
 
   backend-0:
     build: ./
@@ -29,8 +27,6 @@ services:
     restart: always
     expose:
       - 5000
-    ports:
-      - 5000:5000
     networks:
       - webnet
       - database
@@ -50,8 +46,6 @@ services:
     restart: always
     expose:
       - 5000
-    ports:
-      - 5001:5000
     networks:
       - webnet
       - database
@@ -65,8 +59,6 @@ services:
       - webnet
     expose:
       - 3000
-    ports:
-      - 3000:3000
 
   nginx:
     image: nginx:latest
