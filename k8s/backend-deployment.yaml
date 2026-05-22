@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: guess-game
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          # Replace YOUR_DOCKERHUB_USER with your Docker Hub user/repo
+          image: YOUR_DOCKERHUB_USER/guess-backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5000
+          env:
+            - name: FLASK_APP
+              value: "run.py"
+            - name: FLASK_DB_TYPE
+              value: "postgres"
+            - name: FLASK_DB_USER
+              value: "user"
+            - name: FLASK_DB_NAME
+              value: "guess"
+            - name: FLASK_DB_PASSWORD
+              value: "password"
+            - name: FLASK_DB_HOST
+              value: "postgres"
+            - name: FLASK_DB_PORT
+              value: "5432"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"

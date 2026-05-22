@@ -34,12 +34,7 @@ pip freeze > requirements-freeze.txt
 # Frontend
 npm update
 ```
-
-## Sistema de Balanceamento de Carga
-
 O projeto utiliza um sistema de balanceamento de carga para garantir alta disponibilidade e distribuição de tráfego:
-
-### Arquitetura
 
 ```
                     ┌─────────────┐
@@ -93,29 +88,102 @@ O Nginx distribui as requisições da API (`/api/`) entre os dois backends usand
 
 O projeto utiliza duas redes Docker para isolamento:
 - **webnet**: Conecta frontend e backends
-- **database**: Conecta backends ao banco de dados PostgreSQL
 
 ### Escalabilidade
 
 Para adicionar mais backends:
 1. Adicione um novo serviço no `docker-compose.yml`
 2. Adicione o novo servidor no upstream do Nginx
-3. O balanceamento será automático
 
 # Para executar o jogo deve-se executar os seguintes comandos no terminal:
-
-  docker-compose build
-  
-
   docker-compose up
   
-#Abrir o navegador e acessar o endereço:
-
-  http://localhost:8080/
   _______________________________________________________________________________________________________________________________________________________________________________________________________________________________
-
   
 # Jogo de Adivinhação com Flask
+
+## Implantação Kubernetes (k3d)
+
+Siga estes passos para executar o sistema em um cluster Kubernetes (k3d). As imagens do backend e do frontend devem ser publicadas no Docker Hub.
+
+Pré-requisitos:
+- `docker` (com login no Docker Hub)
+- `kubectl`
+- `k3d` (o ambiente do curso fornece um k3d na OVA)
+
+1) Defina seu usuário Docker Hub:
+
+```bash
+export DOCKERHUB_USER=SEU_USUARIO_DOCKERHUB
+docker login
+```
+
+2) Build e push das imagens (no contexto da raiz do repositório):
+
+```bash
+# Backend
+docker build -t $DOCKERHUB_USER/guess-backend:latest -f Dockerfile .
+docker push $DOCKERHUB_USER/guess-backend:latest
+
+# Frontend (produção - build + nginx)
+docker build -t $DOCKERHUB_USER/guess-frontend:latest -f frontend/Dockerfile.prod .
+docker push $DOCKERHUB_USER/guess-frontend:latest
+```
+
+3) Criar o cluster k3d (exemplo mínimo):
+
+```bash
+k3d cluster create guess --agents 0
+```
+
+4) Instalar `metrics-server` (necessário para o HPA funcionar):
+
+```bash
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+```
+
+5) Aplicar os manifests no diretório `k8s/`:
+
+```bash
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/postgres-pvc.yaml
+kubectl apply -f k8s/postgres-deployment.yaml
+kubectl apply -f k8s/postgres-service.yaml
+kubectl apply -f k8s/backend-deployment.yaml
+kubectl apply -f k8s/backend-service.yaml
+kubectl apply -f k8s/backend-hpa.yaml
+kubectl apply -f k8s/frontend-deployment.yaml
+kubectl apply -f k8s/frontend-service.yaml
+```
+
+Os manifests contêm placeholders de imagem `YOUR_DOCKERHUB_USER/guess-*`. Se você preferir, atualize as imagens diretamente usando:
+
+```bash
+kubectl -n guess-game set image deployment/backend backend=$DOCKERHUB_USER/guess-backend:latest
+kubectl -n guess-game set image deployment/frontend frontend=$DOCKERHUB_USER/guess-frontend:latest
+```
+
+6) Acessando o Frontend
+- Via `port-forward` (recomendado para testes locais):
+
+```bash
+kubectl -n guess-game port-forward svc/frontend 8080:80
+# Acesse http://localhost:8080
+```
+
+- Ou via `NodePort` (manifest expõe `nodePort: 30080`): acesse o IP do nó k3d na porta `30080`.
+
+Componentes instalados:
+- **Namespace**: `guess-game`
+- **Postgres**: `Deployment` + `PersistentVolumeClaim` + `Service` (ClusterIP)
+- **Backend**: `Deployment` + `Service` (ClusterIP) + `HPA` (autoscaling/v2, CPU)
+- **Frontend**: `Deployment` + `Service` (NodePort) — o container de frontend contém `nginx` que proxya `/api` para o serviço `backend` internamente
+
+Observações:
+- O HPA depende do `metrics-server` estar presente. Instale-o conforme o passo 4.
+- Se preferir usar `ingress` ou `Gateway API`, substitua a exposição do frontend conforme desejado.
+- Para testar o HPA, gere carga contra o backend (por exemplo com `wrk`/`hey` dentro do cluster) até que o consumo de CPU atinja o alvo configurado.
+
 
 Este é um simples jogo de adivinhação desenvolvido utilizando o framework Flask. O jogador deve adivinhar uma senha criada aleatoriamente, e o sistema fornecerá feedback sobre o número de letras corretas e suas respectivas posições.
 
@@ -271,7 +339,3 @@ Este projeto está licenciado sob a [MIT License](LICENSE).
 ---
 
 
-
-#   T r a b a l h o - K u b e r n e t e s - 2 0 2 6 
- 
- 
